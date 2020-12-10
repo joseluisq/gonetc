@@ -1,0 +1,11 @@
+*bin*
+*debug*
+vendor
+*.tmp
+*.txt
+*.log
+*.bin
+*.sum
+.vscode
+**/.DS_Store
+TODO
