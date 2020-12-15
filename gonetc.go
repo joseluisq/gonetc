@@ -3,20 +3,15 @@ package gonetc
 
 import (
 	"fmt"
-	"io"
 	"net"
 )
-
-// Handler represent handler
-type Handler func(data []byte, err error, done func())
 
 // NetClient defines a client network.
 type NetClient struct {
 	network string
 	address string
+	conn    net.Conn
 
-	// It holds the current Go net inner connection instance.
-	Conn net.Conn
 	// It specifies the maximum size of bytes per read (2048 by default).
 	MaxReadBytes int
 }
@@ -36,12 +31,20 @@ func (c *NetClient) Connect() error {
 	if err != nil {
 		return err
 	}
-	c.Conn = conn
+	c.conn = conn
 	return nil
 }
 
 // readData reads data from current connection.
 func (c *NetClient) readData(respHandler func(data []byte, err error, done func())) {
+	if c.conn == nil {
+		respHandler(make([]byte, 0), fmt.Errorf("no network connection to read"), func() {})
+		return
+	}
+	if c.MaxReadBytes < 0 {
+		respHandler(make([]byte, 0), fmt.Errorf("max read bytes can not be negative"), func() {})
+		return
+	}
 	var quit = make(chan struct{})
 	var buf = make([]byte, c.MaxReadBytes)
 	for {
@@ -49,18 +52,17 @@ func (c *NetClient) readData(respHandler func(data []byte, err error, done func(
 		case <-quit:
 			return
 		default:
-			n, err := c.Conn.Read(buf)
-			if err != nil && err != io.EOF {
-				respHandler(make([]byte, 0), err, func() {
-					close(quit)
-				})
-				return
-			}
+			n, err := c.conn.Read(buf)
 			respHandler(buf[:n], err, func() {
 				close(quit)
 			})
 		}
 	}
+}
+
+// Conn gets the inner Go net connection instance.
+func (c *NetClient) Conn() net.Conn {
+	return c.conn
 }
 
 // Listen listens for incoming response data.
@@ -72,10 +74,10 @@ func (c *NetClient) Listen(respHandler func(data []byte, err error, done func())
 // When a `respHandler` function is provided then three params are provided: `data []byte`, `err error`, `done func()`.
 // The `done()` function param acts as a callback completion in order to finish the current write execution.
 func (c *NetClient) Write(data []byte, respHandler func(data []byte, err error, done func())) (n int, err error) {
-	if c.Conn == nil {
-		return 0, fmt.Errorf("no available network connection to write")
+	if c.conn == nil {
+		return 0, fmt.Errorf("no network connection to write")
 	}
-	n, err = c.Conn.Write(data)
+	n, err = c.conn.Write(data)
 	if err == nil && respHandler != nil {
 		c.Listen(respHandler)
 	}
@@ -83,8 +85,9 @@ func (c *NetClient) Write(data []byte, respHandler func(data []byte, err error, 
 }
 
 // Close closes current client network connection.
-func (c *NetClient) Close() {
-	if c.Conn != nil {
-		c.Conn.Close()
+func (c *NetClient) Close() error {
+	if c.conn == nil {
+		return fmt.Errorf("no network connection to close")
 	}
+	return c.conn.Close()
 }
