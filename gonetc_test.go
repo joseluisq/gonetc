@@ -53,77 +53,6 @@ func (s *listeningSocket) close() error {
 	return s.cmd.Process.Signal(os.Interrupt)
 }
 
-func Test_socketReader(t *testing.T) {
-	lsock, err := createListeningSocket()
-	if err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-
-	type args struct {
-		data []byte
-	}
-	tests := []struct {
-		name           string
-		network        string
-		unixSocketPath string
-		args           args
-		want           []byte
-	}{
-		{
-			name:           "valid socket connection and data response",
-			network:        "unix",
-			unixSocketPath: "/tmp/mysocket",
-			args: args{
-				data: []byte("sample data"),
-			},
-			want: []byte("sample data"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 3. Create a socket client
-			conn, err := net.Dial(tt.network, tt.unixSocketPath)
-			if err != nil {
-				t.Errorf("%v", err)
-			}
-
-			chanResp := make(chan netResp)
-			go netReader(conn, chanResp)
-
-			// 4. Write testing data to current socket
-			if _, err := conn.Write(tt.args.data); err != nil {
-				t.Errorf("%v", err)
-				return
-			}
-
-			defer conn.Close()
-
-			select {
-			case r := <-chanResp:
-				if r.err != nil {
-					t.Errorf("%v", err)
-					return
-				}
-
-				// 5. Perform socket data assertions
-				if !reflect.DeepEqual(r.data, tt.want) {
-					t.Errorf("%v", err)
-				}
-				lsock.wg.Done()
-			}
-
-			lsock.wg.Wait()
-		})
-	}
-
-	// 6. Send signal to `socat` listening process
-	if err := lsock.close(); err != nil {
-		t.Errorf("%v", err)
-		return
-	}
-}
-
 func TestNew(t *testing.T) {
 	type args struct {
 		network        string
@@ -141,8 +70,9 @@ func TestNew(t *testing.T) {
 				unixSocketPath: "/tmp/mysocket",
 			},
 			want: &NetClient{
-				network: "unix",
-				address: "/tmp/mysocket",
+				network:      "unix",
+				address:      "/tmp/mysocket",
+				MaxReadBytes: 1024,
 			},
 		},
 	}
@@ -190,9 +120,6 @@ func TestNetClient_Connect(t *testing.T) {
 			if !tt.wantErr {
 				if c.Conn == nil {
 					t.Errorf("Connect() = zSock: %v, want not nil", c.Conn)
-				}
-				if c.netResp == nil {
-					t.Errorf("Connect() = zSockResp: %v, want not nil", c.netResp)
 				}
 			}
 		})
@@ -313,5 +240,35 @@ func TestNetClient_Close(t *testing.T) {
 	if err := lsock.close(); err != nil {
 		t.Errorf("%v", err)
 		return
+	}
+}
+
+func TestNetClient_readData(t *testing.T) {
+	type fields struct {
+		network      string
+		address      string
+		Conn         net.Conn
+		MaxReadBytes int
+	}
+	type args struct {
+		respHandler func(data []byte, err error, done func())
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &NetClient{
+				network:      tt.fields.network,
+				address:      tt.fields.address,
+				Conn:         tt.fields.Conn,
+				MaxReadBytes: tt.fields.MaxReadBytes,
+			}
+			c.readData(tt.args.respHandler)
+		})
 	}
 }

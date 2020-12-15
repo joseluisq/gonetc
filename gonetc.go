@@ -7,45 +7,26 @@ import (
 	"net"
 )
 
+// Handler represent handler
+type Handler func(data []byte, err error, done func())
+
 // NetClient defines a client network.
 type NetClient struct {
 	network string
 	address string
-	netResp chan netResp
+
 	// It holds the current Go net inner connection instance.
 	Conn net.Conn
-}
-
-// netResp defines the client network response pair.
-type netResp struct {
-	data []byte
-	err  error
-}
-
-// netReader reads network response data.
-func netReader(r io.Reader, resp chan<- netResp) {
-	buf := make([]byte, 1024)
-	for {
-		n, err := r.Read(buf[:])
-		if err != nil {
-			resp <- netResp{
-				data: make([]byte, 0),
-				err:  err,
-			}
-			return
-		}
-		resp <- netResp{
-			data: buf[0:n],
-			err:  err,
-		}
-	}
+	// It specifies the maximum size of bytes per read (2048 by default).
+	MaxReadBytes int
 }
 
 // New creates a new client network instance. Parameters are the same as Go `net.Dial`.
 func New(network string, address string) *NetClient {
 	return &NetClient{
-		network: network,
-		address: address,
+		network:      network,
+		address:      address,
+		MaxReadBytes: 2048,
 	}
 }
 
@@ -55,11 +36,36 @@ func (c *NetClient) Connect() error {
 	if err != nil {
 		return err
 	}
-	resp := make(chan netResp)
-	go netReader(conn, resp)
 	c.Conn = conn
-	c.netResp = resp
 	return nil
+}
+
+// readData reads data from current connection.
+func (c *NetClient) readData(respHandler func(data []byte, err error, done func())) {
+	var quit = make(chan struct{})
+	var buf = make([]byte, c.MaxReadBytes)
+	for {
+		select {
+		case <-quit:
+			return
+		default:
+			n, err := c.Conn.Read(buf)
+			if err != nil && err != io.EOF {
+				respHandler(make([]byte, 0), err, func() {
+					close(quit)
+				})
+				return
+			}
+			respHandler(buf[:n], err, func() {
+				close(quit)
+			})
+		}
+	}
+}
+
+// Listen listens for incoming response data.
+func (c *NetClient) Listen(respHandler func(data []byte, err error, done func())) {
+	c.readData(respHandler)
 }
 
 // Write writes bytes to current client network connection. It also provides an optional data response handler.
@@ -67,23 +73,11 @@ func (c *NetClient) Connect() error {
 // The `done()` function param acts as a callback completion in order to finish the current write execution.
 func (c *NetClient) Write(data []byte, respHandler func(data []byte, err error, done func())) (n int, err error) {
 	if c.Conn == nil {
-		return 0, fmt.Errorf("no available unix network connection to write")
+		return 0, fmt.Errorf("no available network connection to write")
 	}
 	n, err = c.Conn.Write(data)
 	if err == nil && respHandler != nil {
-		var res netResp
-		quit := make(chan struct{})
-	loop:
-		for {
-			select {
-			case <-quit:
-				break loop
-			case res = <-c.netResp:
-				respHandler(res.data, res.err, func() {
-					close(quit)
-				})
-			}
-		}
+		c.Listen(respHandler)
 	}
 	return n, err
 }
