@@ -8,7 +8,7 @@ env:
 
 jobs:
   linux:
-    name: Testing
+    name: Testing (linux)
     strategy:
       fail-fast: false
       matrix:
@@ -51,7 +51,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.go }}-go-ci
 
   darwin:
-    name: Testing
+    name: Testing (darwin)
     strategy:
       fail-fast: false
       matrix:
