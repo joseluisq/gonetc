@@ -1,4 +1,4 @@
-# gonetc [![Build Status](https://travis-ci.com/joseluisq/gonetc.svg?branch=master)](https://travis-ci.com/joseluisq/gonetc) [![codecov](https://codecov.io/gh/joseluisq/gonetc/branch/master/graph/badge.svg)](https://codecov.io/gh/joseluisq/gonetc) [![Go Report Card](https://goreportcard.com/badge/github.com/joseluisq/gonetc)](https://goreportcard.com/report/github.com/joseluisq/gonetc) [![PkgGoDev](https://pkg.go.dev/badge/github.com/joseluisq/gonetc)](https://pkg.go.dev/github.com/joseluisq/gonetc)
+# gonetc ![CI](https://github.com/joseluisq/gonetc/workflows/CI/badge.svg) [![codecov](https://codecov.io/gh/joseluisq/gonetc/branch/master/graph/badge.svg)](https://codecov.io/gh/joseluisq/gonetc) [![Go Report Card](https://goreportcard.com/badge/github.com/joseluisq/gonetc)](https://goreportcard.com/report/github.com/joseluisq/gonetc) [![PkgGoDev](https://pkg.go.dev/badge/github.com/joseluisq/gonetc)](https://pkg.go.dev/github.com/joseluisq/gonetc)
 
 > A simple [Go Network](https://golang.org/pkg/net/) wrapper client interface.
 
