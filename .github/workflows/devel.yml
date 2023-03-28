@@ -1,4 +1,4 @@
-name: CI
+name: devel
 
 on: [push, pull_request]
 
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: [1.15.x, 1.16.x]
+        go: [1.18.x, 1.19.x, 1.20.x]
     runs-on: ubuntu-latest
     steps:
       - name: Dependencies
@@ -55,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: [1.15.x, 1.16.x]
+        go: [1.18.x, 1.19.x, 1.20.x]
     runs-on: macos-latest
     steps:
       - name: Dependencies
